@@ -1,4 +1,4 @@
-FROM amazonlinux:2018.03
+FROM amazonlinux:2
 
 ENV SOURCE_DIR="/opt"
 ENV INSTALL_DIR="/opt"
@@ -17,7 +17,7 @@ RUN set -xe; \
     mkdir -p ${INSTALL_DIR}/etc \
     ${INSTALL_DIR}/bin \
     ${INSTALL_DIR}/var \
-    ${INSTALL_DIR}/share \
+    ${INSTALL_DIR}/share/fonts \
     ${INSTALL_DIR}/lib
 
 COPY --from=jeylabs/poppler/compiler:latest /lib64/libuuid.so.* ${INSTALL_DIR}/lib/
@@ -29,7 +29,9 @@ COPY --from=jeylabs/poppler/compiler:latest ${SOURCE_DIR}/lib/ ${INSTALL_DIR}/li
 COPY --from=jeylabs/poppler/compiler:latest ${SOURCE_DIR}/lib64/ ${INSTALL_DIR}/lib/
 
 RUN set -xe; \
-    cp -R /tmp/share/fontconfig ${INSTALL_DIR}/share/fontconfig
+    cp -R /tmp/share/fontconfig ${INSTALL_DIR}/share/fontconfig; \
+    cp -R /tmp/share/poppler ${INSTALL_DIR}/share/poppler; \
+    cp -R /tmp/share/fonts/noto ${INSTALL_DIR}/share/fonts/noto
 
 # Test file
 

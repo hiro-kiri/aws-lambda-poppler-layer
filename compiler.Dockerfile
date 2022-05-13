@@ -1,4 +1,4 @@
-FROM amazonlinux:2018.03
+FROM amazonlinux:2
 
 SHELL ["/bin/bash", "-c"]
 
@@ -7,7 +7,7 @@ ENV INSTALL_DIR="/opt"
 
 # Lock To Proper Release
 
-RUN sed -i 's/releasever=latest/releaserver=2018.03/' /etc/yum.conf
+RUN #sed -i 's/releasever=latest/releaserver=2018.03/' /etc/yum.conf
 
 # Create All The Necessary Build Directories
 
@@ -22,7 +22,6 @@ RUN mkdir -p ${BUILD_DIR}  \
     ${INSTALL_DIR}/share
 
 # Install Development Tools
-
 WORKDIR /tmp
 
 RUN set -xe \
@@ -30,16 +29,29 @@ RUN set -xe \
     && yum groupinstall -y "Development Tools"  --setopt=group_package_types=mandatory,default \
     && yum install -y libuuid-devel openssl-devel gcc72 gcc72-c++
 
-# Install CMake
+# Install Python
+ENV VERSION_PYTHON=3.10.4
+RUN  set -xe \
+    && mkdir -p /tmp/python \
+    && cd /tmp/python \
+    && curl -Ls  "https://www.python.org/ftp/python/${VERSION_PYTHON}/Python-${VERSION_PYTHON}.tgz" \
+    | tar xzC /tmp/python --strip-components=1 \
+    && ./configure --enable-optimizations \
+    && make -j $(nnproc) \
+    && make altinstall \
+    && yum install -y python3-pip
 
+
+# Install CMake
+ENV VERSION_CMAKE=3.23.1
 RUN  set -xe \
     && mkdir -p /tmp/cmake \
     && cd /tmp/cmake \
-    && curl -Ls  https://github.com/Kitware/CMake/releases/download/v3.16.3/cmake-3.16.3.tar.gz \
+    && curl -Ls  "https://github.com/Kitware/CMake/releases/download/v${VERSION_CMAKE}/cmake-${VERSION_CMAKE}.tar.gz" \
     | tar xzC /tmp/cmake --strip-components=1 \
     && sed -i '/"lib64"/s/64//' Modules/GNUInstallDirs.cmake \
     && ./bootstrap \
-    --prefix=/usr/local \ 
+    --prefix=/usr/local \
     --no-system-jsoncpp \
     --no-system-librhash \
     --no-system-curl \
@@ -58,7 +70,6 @@ RUN  set -xe \
     && make install
 
 # Configure Default Compiler Variables
-
 ENV PKG_CONFIG_PATH="${INSTALL_DIR}/lib64/pkgconfig:${INSTALL_DIR}/lib/pkgconfig" \
     PKG_CONFIG="/usr/bin/pkg-config" \
     PATH="${INSTALL_DIR}/bin:${PATH}"
@@ -66,8 +77,7 @@ ENV PKG_CONFIG_PATH="${INSTALL_DIR}/lib64/pkgconfig:${INSTALL_DIR}/lib/pkgconfig
 ENV LD_LIBRARY_PATH="${INSTALL_DIR}/lib64:${INSTALL_DIR}/lib"
 
 # Build LibXML2 (https://github.com/GNOME/libxml2/releases)
-
-ENV VERSION_XML2=2.9.10
+ENV VERSION_XML2=2.9.12
 ENV XML2_BUILD_DIR=${BUILD_DIR}/xml2
 
 RUN set -xe; \
@@ -98,8 +108,7 @@ RUN set -xe; \
     && cp xml2-config ${INSTALL_DIR}/bin/xml2-config
 
 # Install FreeType2 (https://github.com/aseprite/freetype2/releases)
-
-ENV VERSION_FREETYPE2=2.10.1
+ENV VERSION_FREETYPE2=2.12.0
 ENV FREETYPE2_BUILD_DIR=${BUILD_DIR}/freetype2
 
 RUN set -xe; \
@@ -124,12 +133,11 @@ RUN set -xe; \
     --prefix=${INSTALL_DIR} \
     --with-sysroot=${INSTALL_DIR} \
     --enable-freetype-config  \
-    --disable-static \ 
+    --disable-static \
     && make \
     && make install
 
 # Install gperf
-
 ENV VERSION_GPERF=3.1
 ENV GPERF_BUILD_DIR=${BUILD_DIR}/gperf
 
@@ -150,8 +158,7 @@ RUN set -xe; \
     && make install
 
 # Install Fontconfig (https://github.com/freedesktop/fontconfig/releases)
-
-ENV VERSION_FONTCONFIG=2.13.92
+ENV VERSION_FONTCONFIG=2.14.0
 ENV FONTCONFIG_BUILD_DIR=${BUILD_DIR}/fontconfig
 
 RUN set -xe; \
@@ -179,8 +186,7 @@ RUN set -xe; \
     && make install
 
 # Install Libjpeg-Turbo (https://github.com/libjpeg-turbo/libjpeg-turbo/releases)
-
-ENV VERSION_LIBJPEG=2.0.6
+ENV VERSION_LIBJPEG=2.1.3
 ENV LIBJPEG_BUILD_DIR=${BUILD_DIR}/libjpeg
 
 RUN set -xe; \
@@ -198,14 +204,13 @@ RUN set -xe; \
     -DCMAKE_BUILD_TYPE=RELEASE \
     -DENABLE_STATIC=FALSE \
     -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
-    -DCMAKE_INSTALL_DEFAULT_LIBDIR=lib \ 
+    -DCMAKE_INSTALL_DEFAULT_LIBDIR=lib \
     -DCMAKE_PREFIX_PATH=${INSTALL_DIR} \
     && make \
     && make install
 
 # Install OpenJPEG (https://github.com/uclouvain/openjpeg/releases)
-
-ENV VERSION_OPENJPEG2=2.3.1
+ENV VERSION_OPENJPEG2=2.4.0
 ENV OPENJPEG2_BUILD_DIR=${BUILD_DIR}/openjpeg2
 
 RUN set -xe; \
@@ -222,13 +227,12 @@ RUN set -xe; \
     cmake .. \
     -DCMAKE_BUILD_TYPE=RELEASE \
     -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
-    -DBUILD_STATIC_LIBS=OFF \ 
+    -DBUILD_STATIC_LIBS=OFF \
     -DCMAKE_PREFIX_PATH=${INSTALL_DIR} \
     && make \
     && make install
 
 # Install Libpng (https://github.com/glennrp/libpng/releases)
-
 ENV VERSION_OPENPNG=1.6.37
 ENV OPENPNG_BUILD_DIR=${BUILD_DIR}/libpng
 
@@ -245,13 +249,12 @@ RUN set -xe; \
     LDFLAGS="-L${INSTALL_DIR}/lib64 -L${INSTALL_DIR}/lib" \
     ./configure  \
     --prefix=${INSTALL_DIR} \
-    --disable-static \ 
+    --disable-static \
     && make \
     && make install
 
 # Install LibTIFF (http://download.osgeo.org/libtiff)
-
-ENV VERSION_LIBTIFF=4.1.0
+ENV VERSION_LIBTIFF=4.3.0
 ENV LIBTIFF_BUILD_DIR=${BUILD_DIR}/tiff
 
 RUN set -xe; \
@@ -267,12 +270,11 @@ RUN set -xe; \
     LDFLAGS="-L${INSTALL_DIR}/lib64 -L${INSTALL_DIR}/lib" \
     ./configure  \
     --prefix=${INSTALL_DIR} \
-    --disable-static \ 
+    --disable-static \
     && make \
     && make install
 
 # Install Pixman (https://www.cairographics.org/releases)
-
 ENV VERSION_PIXMAN=0.40.0
 ENV PIXMAN_BUILD_DIR=${BUILD_DIR}/pixman
 
@@ -292,13 +294,12 @@ RUN set -xe; \
     LDFLAGS="-L${INSTALL_DIR}/lib64 -L${INSTALL_DIR}/lib" \
     ./configure  \
     --prefix=${INSTALL_DIR} \
-    --disable-static \ 
+    --disable-static \
     && make \
     && make install
 
 # Install Cairo (http://www.linuxfromscratch.org/blfs/view/svn/x/cairo.html)
-
-ENV VERSION_CAIRO=1.16.0
+ENV VERSION_CAIRO=1.17.6
 ENV CAIRO_BUILD_DIR=${BUILD_DIR}/cairo
 
 RUN set -xe; \
@@ -314,14 +315,13 @@ RUN set -xe; \
     LDFLAGS="-L${INSTALL_DIR}/lib64 -L${INSTALL_DIR}/lib" \
     ./configure  \
     --prefix=${INSTALL_DIR} \
-    --disable-static \ 
-    --enable-tee \ 
+    --disable-static \
+    --enable-tee \
     && make \
     && make install
 
 # Install Little CMS (https://downloads.sourceforge.net/lcms)
-
-ENV VERSION_LCMS=2-2.11
+ENV VERSION_LCMS=2-2.13
 ENV LCMS_BUILD_DIR=${BUILD_DIR}/lcms
 
 RUN set -xe; \
@@ -337,13 +337,13 @@ RUN set -xe; \
     LDFLAGS="-L${INSTALL_DIR}/lib64 -L${INSTALL_DIR}/lib" \
     ./configure  \
     --prefix=${INSTALL_DIR} \
-    --disable-static \ 
+    --disable-static \
     && make \
     && make install
 
 # Install Poppler (https://gitlab.freedesktop.org/poppler/poppler/-/tags)
 
-ENV VERSION_POPPLER=21.04.0
+ARG VERSION_POPPLER=22.05.0
 ENV POPPLER_BUILD_DIR=${BUILD_DIR}/poppler
 ENV POPPLER_TEST_DIR=${BUILD_DIR}/poppler-test
 
@@ -366,8 +366,30 @@ RUN set -xe; \
     -DCMAKE_BUILD_TYPE=Release \
     -DTESTDATADIR=${POPPLER_TEST_DIR} \
     -DENABLE_UNSTABLE_API_ABI_HEADERS=ON \
-    -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \ 
+    -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
     -DCMAKE_PREFIX_PATH=${INSTALL_DIR} \
+    -DENABLE_BOOST=OFF \
     && make \
     && make install
 
+#poppler-data \
+ENV VERSION_POPPLER_DATA=0.4.11
+ENV POPPLER_DATA_INSTALL_DIR=${INSTALL_DIR}/share/poppler
+RUN set -xe; \
+    mkdir -p ${POPPLER_DATA_INSTALL_DIR}; \
+    curl -Ls https://poppler.freedesktop.org/poppler-data-${VERSION_POPPLER_DATA}.tar.gz \
+    | tar xzC ${POPPLER_DATA_INSTALL_DIR} --strip-components=1
+
+#Google Fonts Noto Sans Japanese, Noto Serif Japanese
+ENV NOTO_DATA_INSTALL_DIR=${INSTALL_DIR}/share/fonts/noto
+ENV NOTO_DATA_BUILD_DIR=${BUILD_DIR}/noto
+
+RUN set -xe; \
+    mkdir -p ${NOTO_DATA_BUILD_DIR}; \
+    mkdir -p ${NOTO_DATA_INSTALL_DIR}; \
+    curl -Ls https://fonts.google.com/download?family=Noto%20Sans%20JP -o ${NOTO_DATA_BUILD_DIR}/noto-sans-jp.zip; \
+    curl -Ls https://fonts.google.com/download?family=Noto%20Serif%20JP -o ${NOTO_DATA_BUILD_DIR}/noto-serif-jp.zip;
+
+WORKDIR ${NOTO_DATA_INSTALL_DIR}
+RUN unzip -o ${NOTO_DATA_BUILD_DIR}/noto-sans-jp.zip; \
+    unzip -o ${NOTO_DATA_BUILD_DIR}/noto-serif-jp.zip;
